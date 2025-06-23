@@ -3,7 +3,7 @@ import pandas as pd
 import os
 
 # 设置页面标题
-st.title("Schwab RSU 数据分析工具")
+st.title("Schwab Stock Equity Award 数据分析工具")
 st.info(
 '''
 本工具用于分析Schwab导出的RSU和ESPP数据，计算盈利值和税务信息 \n
