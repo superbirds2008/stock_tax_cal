@@ -1,0 +1,10 @@
+{
+  "servers": [
+    {
+      "id": "Demo",
+      "name": "Demo",
+      "transport": "stdio",
+      "command": ["/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/venv/bin/python", "${workspaceFolder}/fastmcp_demo.py"]
+    }
+  ]
+}

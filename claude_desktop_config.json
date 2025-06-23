@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "demo": {
+      "command": "/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/venv/bin/python",
+      "args": ["/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/fastmcp_demo.py"],
+      "env": {
+        "PYTHONPATH": "/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/venv/lib/python3.13/site-packages/",
+        "VIRTUAL_ENV": "/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/venv",
+        "PATH": "/Users/pengzhan/Documents/Documents/Dev/AI_study/aiagent_mcp/venv/bin:$PATH"
+      }
+    }
+  }
+}
