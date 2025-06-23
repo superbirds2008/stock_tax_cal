@@ -4,6 +4,22 @@ import os
 
 # 设置页面标题
 st.title("Schwab RSU 数据分析工具")
+st.info(
+'''
+本工具用于分析Schwab导出的RSU和ESPP数据，计算盈利值和税务信息 \n
+请上传从Schwab导出的Stock年度CSV文件，并根据需要进行数据过滤和计算 \n
+注意：本工具仅供参考，具体税务信息请咨询专业人士 \n
+导出方法：\n
+1. 登录Schwab账户，进入“Transaction History” \n
+2. Data Range选择“Previous Year” \n
+3. 点击"Search"按钮 \n
+4. 在页面右上角选择“Export” \n
+5. 选择“CSV”格式导出 \n
+6. 下载CSV文件并上传到本工具 \n
+7. 设置美元汇率（默认7.1884）n
+8. 选择RSU、ESPP以及Dividend数据进行过滤，除非有变化，本工具已经设置好相应的字段和过滤关键字 \n
+'''
+)
 # 提示用户输入美元汇率，缺省为7.1884
 st.subheader("美元汇率")
 default_exchange_rate = 7.1884
@@ -210,12 +226,12 @@ else:
 
 # 写入分隔符
 st.markdown("---")
-st.info("计算美元数据如下：")
+st.info("股票相关美元总值如j j：")
 st.write(f"计入亏损交易的股票盈利值：RSU {include_negative_rsu_profit_summary:.2f} (USD) + ESPP {include_negative_espp_profit_summary:.2f} (USD) = {include_negative_rsu_profit_summary + include_negative_espp_profit_summary:.2f} (USD)")
 st.write(f"不计入亏损交易的股票盈利值：RSU {non_negtive_rsu_profit_summary:.2f} (USD) + ESPP {non_negtive_espp_profit_summary:.2f} (USD) = {non_negtive_rsu_profit_summary + non_negtive_espp_profit_summary:.2f} (USD)")
 st.write(f"股息所得：{divedend_summary:.2f} (USD)")
 st.markdown("---")
-st.info("计算人民币数据如下：")
+st.info("股票相关人民币数据如下：")
 st.write(f"计入亏损交易的股票盈利值：RSU  {include_negative_rsu_profit_summary * exchange_rate:.2f} (CNY) + {include_negative_espp_profit_summary * exchange_rate:.2f} (CNY) = {(include_negative_rsu_profit_summary + include_negative_espp_profit_summary) * exchange_rate:.2f} (CNY)")
 st.write(f"不计入亏损交易的股票盈利值：RSU {non_negtive_rsu_profit_summary * exchange_rate:.2f} (CNY) + ESPP {non_negtive_espp_profit_summary * exchange_rate:.2f} (CNY) = {(non_negtive_rsu_profit_summary + non_negtive_espp_profit_summary) * exchange_rate:.2f} (CNY)")
 st.write(f"股息所得：{divedend_summary * exchange_rate:.2f} (CNY)")
