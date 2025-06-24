@@ -12,13 +12,14 @@ st.info(
 注意：本工具仅供参考，具体税务信息请咨询专业人士 \n
 导出方法：\n
 1. 登录Schwab账户，进入“Transaction History” \n
-2. Data Range选择“Previous Year” \n
-3. 点击"Search"按钮 \n
-4. 在页面右上角选择“Export” \n
-5. 选择“CSV”格式导出 \n
-6. 下载CSV文件并上传到本工具 \n
-7. 设置美元汇率（默认7.1884）n
-8. 选择RSU、ESPP以及Dividend数据进行过滤，除非有变化，本工具已经设置好相应的字段和过滤关键字 \n
+2. 在页面左侧选择“Equity Awards” \n
+3. Data Range选择“Previous Year” \n
+4. 点击"Search"按钮 \n
+5. 在页面右上角选择“Export” \n
+6. 选择“CSV”格式导出 \n
+7. 下载CSV文件并上传到本工具 \n
+8. 设置美元汇率（默认7.1884）\n
+9. 选择RSU、ESPP以及Dividend数据进行过滤，除非有变化，本工具已经设置好相应的字段和过滤关键字 \n
 '''
 )
 # 提示用户输入美元汇率，缺省为7.1884
