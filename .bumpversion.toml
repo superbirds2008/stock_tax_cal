@@ -20,7 +20,7 @@ setup_hooks = []
 pre_commit_hooks = []
 post_commit_hooks = []
 [[tool.bumpversion.files]]
-filename = "version.ini"
+filename = "version.py"
 search = '''
 version = "{current_version}"'''
 
