@@ -37,190 +37,110 @@ st.subheader("上传从Schwab导出的Stock年度CSV 文件")
 st.write("请选择CSV 文件")
 uploaded_file = st.file_uploader("选择 CSV 文件", type=["csv"], accept_multiple_files=False)
 
-non_negtive_rsu_profit_summary = 0.0
-non_negtive_espp_profit_summary = 0.0
-include_negative_rsu_profit_summary = 0.0
-include_negative_espp_profit_summary = 0.0
-divedend_summary = 0.0
+profit_summary = {
+    "RSU": {"non_negative": 0.0, "include_negative": 0.0},
+    "ESPP": {"non_negative": 0.0, "include_negative": 0.0},
+    "Dividend": {"total": 0.0}
+}
 
 
 # 如果文件已上传
 if uploaded_file is not None:
-    # 读取 CSV 文件
     try:
         df = pd.read_csv(uploaded_file)
         st.success("文件上传成功！")
-
-
-
         st.write("原始数据预览：")
         st.dataframe(df)
-
-        # 获取所有列名
         columns = df.columns.tolist()
 
-        # ---------------------RSU部分---------------------
-        # 提示用户选择需要过滤的列
-        st.subheader("选择RSU数据进行过滤")
-        default_index = columns.index('Type') if 'Type' in columns else 0
-        selected_column = st.selectbox("选择要过滤的列(缺省为'Type')", options=columns, index=default_index)
-        # 获取选中列的唯一值
-        unique_values = df[selected_column].dropna().unique().tolist()
+        # 定义配置字典
+        configs = {
+            "RSU": {
+                "filter_column": "Type",
+                "filter_default": ["RS"],
+                "cost_column": "VestFairMarketValue",
+                "sale_column": "SalePrice",
+                "shares_column": "Shares",
+                "profit_func": lambda fdf, sale, cost, shares: (fdf[sale] - fdf[cost]) * fdf[shares],
+                "profit_label": "盈利值"
+            },
+            "ESPP": {
+                "filter_column": "Type",
+                "filter_default": ["ESPP"],
+                "cost_column": "PurchaseFairMarketValue",
+                "sale_column": "SalePrice",
+                "shares_column": "Shares",
+                "profit_func": lambda fdf, sale, cost, shares: (fdf[sale] - fdf[cost]) * fdf[shares],
+                "profit_label": "盈利值"
+            },
+            "Dividend": {
+                "filter_column": "Action",
+                "filter_default": ["Dividend"],
+                "amount_column": "Amount",
+                "profit_func": lambda fdf, amount: fdf[amount],
+                "profit_label": "股息值"
+            }
+        }
 
-        # 允许用户选择多个值进行过滤
-        selected_values = st.multiselect(
-            f"选择 {selected_column} 列的过滤值,可以选择多个值,缺省为‘RS’",
-            options=unique_values,
-            default=['RS']  # 默认不选中任何值
-        )
+        for key, cfg in configs.items():
+            st.markdown(f"---\n### {key} 部分")
+            filter_col = cfg["filter_column"]
+            filter_default = cfg["filter_default"]
+            default_index = columns.index(filter_col) if filter_col in columns else 0
+            selected_column = st.selectbox(f"{key}: 选择要过滤的列(缺省为'{filter_col}')", options=columns, index=default_index, key=f"{key}_filter_col")
+            unique_values = df[selected_column].dropna().unique().tolist()
+            selected_values = st.multiselect(
+                f"{key}: 选择 {selected_column} 列的过滤值,可以选择多个值,缺省为{filter_default}",
+                options=unique_values,
+                default=filter_default,
+                key=f"{key}_filter_val"
+            )
+            if selected_values:
+                filtered_df = df[df[selected_column].isin(selected_values)].copy()
+                st.write(f"{key}: 过滤后的数据（基于 {selected_column} = {selected_values}）：")
+                st.dataframe(filtered_df)
+                st.write(f"{key}: 过滤后数据行数：{len(filtered_df)}")
+            else:
+                st.warning(f"{key}: 请至少选择一个过滤值！")
+                continue
 
-        # 如果用户选择了值，则进行过滤
-        if selected_values:
-            filtered_df = df[df[selected_column].isin(selected_values)]
-            st.write(f"过滤后的数据（基于 {selected_column} = {selected_values}）：")
-            st.dataframe(filtered_df)
-            # 显示过滤后的数据统计信息
-            st.write(f"过滤后数据行数：{len(filtered_df)}")
-        else:
-            st.warning("请至少选择一个过滤值！")
-        
-        # 计算rsu的盈利值
-        # 给出提示，选择销售价格的列和成本价格的列，以及销售股数的列
-        st.subheader("计算盈利值")
-        default_index = columns.index('SalePrice') if 'SalePrice' in columns else 0
-        sales_price_column = st.selectbox("选择销售价格的列, 缺省为'SalePrice'", options=columns, index=default_index)
-        default_index = columns.index('VestFairMarketValue') if 'VestFairMarketValue' in columns else 0
-        cost_price_column = st.selectbox("VestFairMarketValue, '缺省为VestFairMarketValue‘", options=columns, index=default_index)
-        default_index = columns.index('Shares') if 'Shares' in columns else 0
-        shares_column = st.selectbox("选择销售股数的列, 缺省为'Shares", options=columns, index=default_index) 
-        if sales_price_column and cost_price_column and shares_column:
-            # st.write("原始列：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            # 计算盈利值
-            # 销售价格、成本价格和销售股数的列为字符串类型，去除字符串中的非数值字符，如美元符号等
-            df[sales_price_column] = df[sales_price_column].replace(r'[\$,]', '', regex=True)
-            df[cost_price_column] = df[cost_price_column].replace(r'[\$,]', '', regex=True)
-            df[shares_column] = df[shares_column].replace(r'[\$,]', '', regex=True)
-            # st.write("去除$后的值：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            # # 将销售价格、成本价格和销售股数的列转换为数值类型
-            df[sales_price_column] = pd.to_numeric(df[sales_price_column], errors='coerce')
-            df[cost_price_column] = pd.to_numeric(df[cost_price_column], errors='coerce')
-            df[shares_column] = pd.to_numeric(df[shares_column], errors='coerce')
-            # 计算盈利值
-            df['Profit'] = (df[sales_price_column] - df[cost_price_column]) * df[shares_column]
-            # st.write("计算后的数据预览：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            st.warning("盈利值统计(计入亏损交易)：")
-            st.write(f"总盈利值($): {df['Profit'].sum():.2f}")
-            st.write(f"总盈利值(¥): {df['Profit'].sum()*exchange_rate:.2f}")
-            include_negative_rsu_profit_summary = df['Profit'].sum()
-            st.warning("盈利值统计(不计入亏损交易)：")
-            st.write(f"总盈利值($): {df[df['Profit'] > 0]['Profit'].sum():.2f}")
-            st.write(f"总盈利值(¥): {df[df['Profit'] > 0]['Profit'].sum()*exchange_rate:.2f}")
-            non_negtive_rsu_profit_summary = df[df['Profit'] > 0]['Profit'].sum()
-        
-        # ---------------------ESPP部分---------------------
-        # 提示用户选择需要过滤的列
-        st.subheader("选择ESPP数据进行过滤")
-        # 允许用户选择多个值进行过滤
-        selected_values = st.multiselect(
-            f"选择 {selected_column} 列的过滤值,可以选择多个值,缺省为‘ESPP’",
-            options=unique_values,
-            default=['ESPP']  # 默认不选中任何值
-        )
-
-        # 如果用户选择了值，则进行过滤
-        if selected_values:
-            filtered_df = df[df[selected_column].isin(selected_values)]
-            st.write(f"过滤后的数据（基于 {selected_column} = {selected_values}）：")
-            st.dataframe(filtered_df)
-            # 显示过滤后的数据统计信息
-            st.write(f"过滤后数据行数：{len(filtered_df)}")
-        else:
-            st.warning("请至少选择一个过滤值！")
-        
-        # 计算rsu的盈利值
-        # 给出提示，选择销售价格的列和成本价格的列，以及销售股数的列
-        st.subheader("计算盈利值")
-        default_index = columns.index('SalePrice') if 'SalePrice' in columns else 0
-        sales_price_column = st.selectbox("选择销ESPP售价格的列, 缺省为'SalePrice'", options=columns, index=default_index)
-        default_index = columns.index('PurchaseFairMarketValue') if 'PurchaseFairMarketValue' in columns else 0
-        cost_price_column = st.selectbox("ESPP PurchaseFairMarketValue, '缺省为PurchaseFairMarketValue‘", options=columns, index=default_index)
-        default_index = columns.index('Shares') if 'Shares' in columns else 0
-        shares_column = st.selectbox("选择销售ESPP股数的列, 缺省为'Shares", options=columns, index=default_index) 
-        if sales_price_column and cost_price_column and shares_column:
-            # st.write("原始列：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            # 计算盈利值
-            # 销售价格、成本价格和销售股数的列为字符串类型，去除字符串中的非数值字符，如美元符号等
-            df[sales_price_column] = df[sales_price_column].replace(r'[\$,]', '', regex=True)
-            df[cost_price_column] = df[cost_price_column].replace(r'[\$,]', '', regex=True)
-            df[shares_column] = df[shares_column].replace(r'[\$,]', '', regex=True)
-            # st.write("去除$后的值：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            # # 将销售价格、成本价格和销售股数的列转换为数值类型
-            df[sales_price_column] = pd.to_numeric(df[sales_price_column], errors='coerce')
-            df[cost_price_column] = pd.to_numeric(df[cost_price_column], errors='coerce')
-            df[shares_column] = pd.to_numeric(df[shares_column], errors='coerce')
-            # 计算盈利值
-            df['Profit'] = (df[sales_price_column] - df[cost_price_column]) * df[shares_column]
-            # st.write("计算后的数据预览：")
-            # st.dataframe(filtered_df[[sales_price_column, cost_price_column, shares_column]])
-            # st.write(f"过滤后数据行数：{len(filtered_df)}")
-            st.warning("盈利值统计(计入亏损交易)：")
-            st.write(f"总盈利值($): {df['Profit'].sum():.2f}")
-            st.write(f"总盈利值(¥): {df['Profit'].sum()*exchange_rate:.2f}")
-            include_negative_espp_profit_summary = df['Profit'].sum()
-            st.warning("盈利值统计(不计入亏损交易)：")
-            st.write(f"总盈利值($): {df[df['Profit'] > 0]['Profit'].sum():.2f}")
-            st.write(f"总盈利值(¥): {df[df['Profit'] > 0]['Profit'].sum()*exchange_rate:.2f}")
-            non_negtive_espp_profit_summary = df[df['Profit'] > 0]['Profit'].sum()
-        
-# ---------------------股息部分---------------------
-        # 提示用户选择需要过滤的列
-        st.subheader("选择Dividen所在列数据进行过滤")
-        default_index = columns.index('Action') if 'Action' in columns else 0
-        selected_column = st.selectbox("选择要过滤的列(缺省为'Action)", options=columns, index=default_index)
-
-        unique_values = df[selected_column].dropna().unique().tolist()
-        # 允许用户选择多个值进行过滤
-        selected_values = st.multiselect(
-            f"选择 {selected_column} 列的过滤值,可以选择多个值,缺省为‘Dividend’",
-            options=unique_values,
-            default=['Dividend']  # 默认不选中任何值
-        )
-
-        # 如果用户选择了值，则进行过滤
-        if selected_values:
-            filtered_df = df[df[selected_column].isin(selected_values)]
-            st.write(f"过滤后的数据（基于 {selected_column} = {selected_values}）：")
-            st.dataframe(filtered_df)
-            # 显示过滤后的数据统计信息
-            st.write(f"过滤后数据行数：{len(filtered_df)}")
-        else:
-            st.warning("请至少选择一个过滤值！")
-        
-        # 计算的盈利值
-        st.subheader("计算Dividen总值")
-        default_index = columns.index('Amount') if 'Amount' in columns else 0
-        sales_price_column = st.selectbox("选择销Dividend值所在列, 缺省为'Amount'", options=columns, index=default_index)
-        if sales_price_column:
-            filtered_df[sales_price_column] = filtered_df[sales_price_column].replace(r'[\$,]', '', regex=True)
-            filtered_df[sales_price_column] = pd.to_numeric(filtered_df[sales_price_column], errors='coerce')
-            # 计算盈利值
-            filtered_df['Profit'] = filtered_df[sales_price_column]
-            st.write(f"总股息值($): {filtered_df['Profit'].sum():.2f}")
-            st.write(f"总股息值(¥): {filtered_df['Profit'].sum()*exchange_rate:.2f}")
-            divedend_summary = filtered_df['Profit'].sum()
-        else:
-            st.warning("请确保选择了正确的列！")
-
+            if key in ["RSU", "ESPP"]:
+                sale_col = cfg["sale_column"]
+                cost_col = cfg["cost_column"]
+                shares_col = cfg["shares_column"]
+                # 选择列
+                sale_index = columns.index(sale_col) if sale_col in columns else 0
+                cost_index = columns.index(cost_col) if cost_col in columns else 0
+                shares_index = columns.index(shares_col) if shares_col in columns else 0
+                sales_price_column = st.selectbox(f"{key}: 选择销售价格的列, 缺省为'{sale_col}'", options=columns, index=sale_index, key=f"{key}_sale_col")
+                cost_price_column = st.selectbox(f"{key}: 选择成本价格的列, 缺省为'{cost_col}'", options=columns, index=cost_index, key=f"{key}_cost_col")
+                shares_column = st.selectbox(f"{key}: 选择销售股数的列, 缺省为'{shares_col}'", options=columns, index=shares_index, key=f"{key}_shares_col")
+                if sales_price_column and cost_price_column and shares_column:
+                    for col in [sales_price_column, cost_price_column, shares_column]:
+                        filtered_df[col] = filtered_df[col].replace(r'[\$,]', '', regex=True)
+                        filtered_df[col] = pd.to_numeric(filtered_df[col], errors='coerce')
+                    filtered_df['Profit'] = cfg["profit_func"](filtered_df, sales_price_column, cost_price_column, shares_column)
+                    st.warning(f"{key} {cfg['profit_label']}统计(计入亏损交易)：")
+                    st.write(f"总{cfg['profit_label']}($): {filtered_df['Profit'].sum():.2f}")
+                    st.write(f"总{cfg['profit_label']}(¥): {filtered_df['Profit'].sum()*exchange_rate:.2f}")
+                    profit_summary[key]["include_negative"] = filtered_df['Profit'].sum()
+                    st.warning(f"{key} {cfg['profit_label']}统计(不计入亏损交易)：")
+                    st.write(f"总{cfg['profit_label']}($): {filtered_df[filtered_df['Profit'] > 0]['Profit'].sum():.2f}")
+                    st.write(f"总{cfg['profit_label']}(¥): {filtered_df[filtered_df['Profit'] > 0]['Profit'].sum()*exchange_rate:.2f}")
+                    profit_summary[key]["non_negative"] = filtered_df[filtered_df['Profit'] > 0]['Profit'].sum()
+            elif key == "Dividend":
+                amount_col = cfg["amount_column"]
+                amount_index = columns.index(amount_col) if amount_col in columns else 0
+                sales_price_column = st.selectbox(f"{key}: 选择{cfg['profit_label']}所在列, 缺省为'{amount_col}'", options=columns, index=amount_index, key=f"{key}_amount_col")
+                if sales_price_column:
+                    filtered_df[sales_price_column] = filtered_df[sales_price_column].replace(r'[\$,]', '', regex=True)
+                    filtered_df[sales_price_column] = pd.to_numeric(filtered_df[sales_price_column], errors='coerce')
+                    filtered_df['Profit'] = cfg["profit_func"](filtered_df, sales_price_column)
+                    st.write(f"总{cfg['profit_label']}($): {filtered_df['Profit'].sum():.2f}")
+                    st.write(f"总{cfg['profit_label']}(¥): {filtered_df['Profit'].sum()*exchange_rate:.2f}")
+                    profit_summary[key]["total"] = filtered_df['Profit'].sum()
+                else:
+                    st.warning(f"{key}: 请确保选择了正确的列！")
     except Exception as e:
         st.error(f"读取文件时发生错误：{str(e)}")
 else:
@@ -228,13 +148,13 @@ else:
 
 # 写入分隔符
 st.markdown("---")
-st.info("股票相关美元总值如j j：")
-st.write(f"计入亏损交易的股票盈利值：RSU {include_negative_rsu_profit_summary:.2f} (USD) + ESPP {include_negative_espp_profit_summary:.2f} (USD) = {include_negative_rsu_profit_summary + include_negative_espp_profit_summary:.2f} (USD)")
-st.write(f"不计入亏损交易的股票盈利值：RSU {non_negtive_rsu_profit_summary:.2f} (USD) + ESPP {non_negtive_espp_profit_summary:.2f} (USD) = {non_negtive_rsu_profit_summary + non_negtive_espp_profit_summary:.2f} (USD)")
-st.write(f"股息所得：{divedend_summary:.2f} (USD)")
+st.info("股票相关美元总值如：")
+st.write(f"计入亏损交易的股票盈利值：RSU {profit_summary['RSU']['include_negative']:.2f} (USD) + ESPP {profit_summary['ESPP']['include_negative']:.2f} (USD) = {profit_summary['RSU']['include_negative'] + profit_summary['ESPP']['include_negative']:.2f} (USD)")
+st.write(f"不计入亏损交易的股票盈利值：RSU {profit_summary['RSU']['non_negative']:.2f} (USD) + ESPP {profit_summary['ESPP']['non_negative']:.2f} (USD) = {profit_summary['RSU']['non_negative'] + profit_summary['ESPP']['non_negative']:.2f} (USD)")
+st.write(f"股息所得：{profit_summary['Dividend']['total']:.2f} (USD)")
 st.markdown("---")
 st.info("股票相关人民币数据如下：")
-st.write(f"计入亏损交易的股票盈利值：RSU  {include_negative_rsu_profit_summary * exchange_rate:.2f} (CNY) + {include_negative_espp_profit_summary * exchange_rate:.2f} (CNY) = {(include_negative_rsu_profit_summary + include_negative_espp_profit_summary) * exchange_rate:.2f} (CNY)")
-st.write(f"不计入亏损交易的股票盈利值：RSU {non_negtive_rsu_profit_summary * exchange_rate:.2f} (CNY) + ESPP {non_negtive_espp_profit_summary * exchange_rate:.2f} (CNY) = {(non_negtive_rsu_profit_summary + non_negtive_espp_profit_summary) * exchange_rate:.2f} (CNY)")
-st.write(f"股息所得：{divedend_summary * exchange_rate:.2f} (CNY)")
-st.markdown("---")
+st.write(f"计入亏损交易的股票盈利值：RSU  {profit_summary['RSU']['include_negative'] * exchange_rate:.2f} (CNY) + {profit_summary['ESPP']['include_negative'] * exchange_rate:.2f} (CNY) = {(profit_summary['RSU']['include_negative'] + profit_summary['ESPP']['include_negative']) * exchange_rate:.2f} (CNY)")
+st.write(f"不计入亏损交易的股票盈利值：RSU {profit_summary['RSU']['non_negative'] * exchange_rate:.2f} (CNY) + ESPP {profit_summary['ESPP']['non_negative'] * exchange_rate:.2f} (CNY) = {(profit_summary['RSU']['non_negative'] + profit_summary['ESPP']['non_negative']) * exchange_rate:.2f} (CNY)")
+st.write(f"股息所得：{profit_summary['Dividend']['total'] * exchange_rate:.2f} (CNY)")
+st.markdown("---")# 写入分隔符
