@@ -39,10 +39,10 @@ def multiply(a: int, b: int) -> int:
 def main():
     logger.info("Starting MCP server 'Demo'...")
     try:
-        # mcp.run(transport="stdio"
+        mcp.run(transport="stdio")
         # 如需 HTTP 通信，取消下行注
         # mcp.run(transport="streamable-http", host="0.0.0.0", port=8080)
-        mcp.run(transport="sse", host="0.0.0.0", port=8080)
+        # mcp.run(transport="sse", host="0.0.0.0", port=8080)
     except Exception as e:
         logger.exception("Unexpected error:")
 

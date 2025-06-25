@@ -75,7 +75,7 @@ if uploaded_file is not None:
             },
             "Dividend": {
                 "filter_column": "Action",
-                "filter_default": ["Dividend"],
+                "filter_default": ["Dividend", "Tax Withholding"],
                 "amount_column": "Amount",
                 "profit_func": lambda fdf, amount: fdf[amount],
                 "profit_label": "股息值"
