@@ -46,9 +46,13 @@ profit_summary = {
 
 # 如果文件已上传
 if uploaded_file is not None:
+    # 读取 CSV 文件
     try:
         df = pd.read_csv(uploaded_file)
         st.success("文件上传成功！")
+        st.markdown("---")
+        st.markdown("<a href='#股票相关盈利值统计'>跳转到股票相关盈利值统计</a>", unsafe_allow_html=True)
+        st.markdown("---")
         st.write("原始数据预览：")
         st.dataframe(df)
         columns = df.columns.tolist()
@@ -148,6 +152,9 @@ else:
 
 # 写入分隔符
 st.markdown("---")
+st.subheader("股票相关盈利值统计")
+# 增加一个跳转锚点
+st.markdown("<a name='股票相关盈利值统计'></a>", unsafe_allow_html=True)
 st.info("股票相关美元总值如：")
 st.write(f"计入亏损交易的股票盈利值：RSU {profit_summary['RSU']['include_negative']:.2f} (USD) + ESPP {profit_summary['ESPP']['include_negative']:.2f} (USD) = {profit_summary['RSU']['include_negative'] + profit_summary['ESPP']['include_negative']:.2f} (USD)")
 st.write(f"不计入亏损交易的股票盈利值：RSU {profit_summary['RSU']['non_negative']:.2f} (USD) + ESPP {profit_summary['ESPP']['non_negative']:.2f} (USD) = {profit_summary['RSU']['non_negative'] + profit_summary['ESPP']['non_negative']:.2f} (USD)")
